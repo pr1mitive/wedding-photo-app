@@ -118,14 +118,6 @@ export default function AlbumPageClient({ eventCode }: Props) {
             <div className="title-serif" style={{ fontSize: 18, color: 'var(--gold)' }}>№ 01</div>
             <div className="title-jp" style={{ fontSize: 24, letterSpacing: '0.08em', marginTop: 4 }}>All Moments</div>
           </div>
-          <a
-            href={`/api/public/album/${eventCode}/photos`}
-            target="_blank"
-            rel="noreferrer"
-            style={{ padding: '6px 14px', border: '1px solid var(--hair)', color: 'var(--ink-70)', fontSize: 10, letterSpacing: '0.2em' }}
-          >
-            ALBUM DATA
-          </a>
         </div>
 
         <AlbumGallery photos={photos} />

@@ -30,8 +30,6 @@ type Props = {
   photos: AlbumPhoto[];
 };
 
-type FilterKey = 'all' | 'highlight' | 'favorite' | 'recommended';
-
 const STORAGE_KEY = 'wedding-photo-app:reaction-guest-token';
 const reactionButtons = [
   ['heart', '♡', 'いいね'],
@@ -43,33 +41,14 @@ const reactionButtons = [
 
 export default function AlbumGallery({ photos }: Props) {
   const [selected, setSelected] = useState<number | null>(null);
-  const [filter, setFilter] = useState<FilterKey>('all');
-  const [selectedTimeline, setSelectedTimeline] = useState<string>('all');
   const [photoState, setPhotoState] = useState<AlbumPhoto[]>(photos);
 
   useEffect(() => {
     setPhotoState(photos);
   }, [photos]);
 
-  const timelineOptions = useMemo(() => {
-    const values = Array.from(new Set(photoState.map((photo) => photo.timelineLabel).filter(Boolean))) as string[];
-    return ['all', ...values];
-  }, [photoState]);
-
-  const filteredPhotos = useMemo(() => {
-    return photoState.filter((photo) => {
-      const matchesFilter =
-        filter === 'all' ||
-        (filter === 'highlight' && photo.isHighlight) ||
-        (filter === 'favorite' && photo.isFavorite) ||
-        (filter === 'recommended' && photo.isRecommended);
-      const matchesTimeline = selectedTimeline === 'all' || photo.timelineLabel === selectedTimeline;
-      return matchesFilter && matchesTimeline;
-    });
-  }, [filter, photoState, selectedTimeline]);
-
   const rows = useMemo(() => {
-    const source = filteredPhotos;
+    const source = photoState;
     const groups: AlbumPhoto[][] = [];
     for (let i = 0; i < source.length; ) {
       const pattern = groups.length % 3;
@@ -78,9 +57,9 @@ export default function AlbumGallery({ photos }: Props) {
       i += size;
     }
     return groups.filter((row) => row.length > 0);
-  }, [filteredPhotos]);
+  }, [photoState]);
 
-  const selectedPhoto = selected !== null ? filteredPhotos[selected] : null;
+  const selectedPhoto = selected !== null ? photoState[selected] : null;
 
   const handleReact = async (photoId: string, reactionType: string) => {
     const token = getGuestToken();
@@ -99,65 +78,32 @@ export default function AlbumGallery({ photos }: Props) {
 
   return (
     <>
-      <div style={{ display: 'flex', justifyContent: 'space-between', gap: 14, flexWrap: 'wrap', marginBottom: 20 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 14, flexWrap: 'wrap', marginBottom: 20 }}>
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-          {[
-            ['all', 'ALL'],
-            ['highlight', 'ハイライト'],
-            ['favorite', 'お気に入り'],
-            ['recommended', 'おすすめ'],
-          ].map(([key, label]) => (
-            <button
-              key={key}
-              type="button"
-              onClick={() => {
-                setFilter(key as FilterKey);
-                setSelected(null);
-              }}
-              style={{
-                padding: '6px 14px',
-                border: `1px solid ${filter === key ? 'var(--gold)' : 'var(--hair)'}`,
-                color: filter === key ? 'var(--gold)' : 'var(--ink-70)',
-                background: filter === key ? 'rgba(243,228,225,0.45)' : 'transparent',
-                fontSize: 10,
-                letterSpacing: '0.2em',
-                cursor: 'pointer',
-              }}
-            >
-              {label}
-            </button>
-          ))}
+          <button
+            type="button"
+            style={{
+              padding: '6px 14px',
+              border: '1px solid var(--gold)',
+              color: 'var(--gold)',
+              background: 'rgba(243,228,225,0.45)',
+              fontSize: 10,
+              letterSpacing: '0.2em',
+              cursor: 'default',
+            }}
+          >
+            ALL
+          </button>
         </div>
-
-        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-          {timelineOptions.map((label) => (
-            <button
-              key={label}
-              type="button"
-              onClick={() => {
-                setSelectedTimeline(label);
-                setSelected(null);
-              }}
-              style={{
-                padding: '6px 14px',
-                border: `1px solid ${selectedTimeline === label ? 'var(--gold)' : 'var(--hair)'}`,
-                color: selectedTimeline === label ? 'var(--gold)' : 'var(--ink-70)',
-                background: selectedTimeline === label ? 'rgba(243,228,225,0.45)' : 'transparent',
-                fontSize: 10,
-                letterSpacing: '0.15em',
-                cursor: 'pointer',
-              }}
-            >
-              {label === 'all' ? 'すべての時間帯' : label}
-            </button>
-          ))}
+        <div style={{ fontSize: 10, letterSpacing: '0.16em', color: 'var(--ink-50)' }}>
+          {photoState.length} PHOTOS
         </div>
       </div>
 
-      {filteredPhotos.length === 0 ? (
+      {photoState.length === 0 ? (
         <div className="wedding-card" style={{ padding: 30, textAlign: 'center' }}>
           <Eyebrow>No Photos</Eyebrow>
-          <div className="title-jp" style={{ marginTop: 10, fontSize: 20 }}>該当する写真がまだありません</div>
+          <div className="title-jp" style={{ marginTop: 10, fontSize: 20 }}>写真はまだありません</div>
         </div>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
@@ -179,7 +125,7 @@ export default function AlbumGallery({ photos }: Props) {
             >
               {row.map((photo, colIndex) => {
                 const aspect = row.length === 2 ? (colIndex === 0 ? '4 / 3' : '4 / 5') : row.length === 1 ? '16 / 9' : '1 / 1';
-                const idx = filteredPhotos.findIndex((p) => p.id === photo.id);
+                const idx = photoState.findIndex((p) => p.id === photo.id);
                 return (
                   <button
                     key={photo.id}
@@ -191,9 +137,6 @@ export default function AlbumGallery({ photos }: Props) {
                       <img src={photo.src} alt={photo.guestName} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                       <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(180deg, transparent 40%, rgba(0,0,0,0.42))' }} />
                       <div style={{ position: 'absolute', left: 12, top: 12, display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-                        {photo.isRecommended && <Chip label="PICK" />}
-                        {photo.isHighlight && <Chip label="HIGHLIGHT" />}
-                        {photo.isFavorite && <Chip label="FAVORITE" />}
                         {photo.timelineLabel && <Chip label={photo.timelineLabel} />}
                       </div>
                       <div style={{ position: 'absolute', right: 12, top: 12 }}>
@@ -218,10 +161,10 @@ export default function AlbumGallery({ photos }: Props) {
         <Lightbox
           photo={selectedPhoto}
           index={selected ?? 0}
-          total={filteredPhotos.length}
+          total={photoState.length}
           onClose={() => setSelected(null)}
-          onPrev={() => setSelected(((selected ?? 0) - 1 + filteredPhotos.length) % filteredPhotos.length)}
-          onNext={() => setSelected(((selected ?? 0) + 1) % filteredPhotos.length)}
+          onPrev={() => setSelected(((selected ?? 0) - 1 + photoState.length) % photoState.length)}
+          onNext={() => setSelected(((selected ?? 0) + 1) % photoState.length)}
           onReact={handleReact}
         />
       )}
@@ -265,7 +208,7 @@ function Lightbox({
   return (
     <div
       onClick={onClose}
-      style={{ position: 'fixed', inset: 0, background: 'rgba(15,13,11,0.94)', zIndex: 50, display: 'flex', flexDirection: 'column', padding: '32px 40px' }}
+      style={{ position: 'fixed', inset: 0, background: 'rgba(15,13,11,0.94)', zIndex: 50, display: 'flex', flexDirection: 'column', padding: '24px 32px 20px', overflow: 'auto' }}
     >
       <div style={{ display: 'flex', justifyContent: 'space-between', color: '#f3dec0', gap: 20 }}>
         <div>
@@ -280,25 +223,52 @@ function Lightbox({
         </div>
       </div>
 
-      <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 24 }} onClick={(e) => e.stopPropagation()}>
+      <div style={{ flex: 1, minHeight: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 24 }} onClick={(e) => e.stopPropagation()}>
         <button type="button" onClick={onPrev} style={navButtonStyle}>‹</button>
-        <div className="surface-frame" style={{ maxWidth: '78vw' }}>
-          <div className="surface-frame__inner">
-            <img src={photo.src} alt={photo.guestName} style={{ display: 'block', maxHeight: '72vh', maxWidth: '72vw', width: 'auto', height: 'auto' }} />
+        <div
+          className="surface-frame"
+          style={{
+            width: 'min(72vw, 960px)',
+            height: 'min(52vh, 560px)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+        >
+          <div
+            className="surface-frame__inner"
+            style={{
+              width: '100%',
+              height: '100%',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              background: 'rgba(245,239,230,0.18)',
+            }}
+          >
+            <img
+              src={photo.src}
+              alt={photo.guestName}
+              style={{
+                display: 'block',
+                width: '100%',
+                height: '100%',
+                objectFit: 'contain',
+              }}
+            />
           </div>
         </div>
         <button type="button" onClick={onNext} style={navButtonStyle}>›</button>
       </div>
 
-      <div onClick={(e) => e.stopPropagation()} style={{ textAlign: 'center', color: '#f8f1e6' }}>
+      <div onClick={(e) => e.stopPropagation()} style={{ textAlign: 'center', color: '#f8f1e6', paddingBottom: 8 }}>
         <OrnamentDivider wide={72} />
         <div className="title-jp" style={{ fontSize: 16, marginTop: 14, lineHeight: 1.8 }}>「{photo.comment || 'コメントなし'}」</div>
         <div style={{ marginTop: 8, fontSize: 10, letterSpacing: '0.18em', color: '#f3dec0' }}>
-          {photo.isRecommended ? 'NOW PICK · ' : ''}
           {photo.timelineLabel || 'MEMORY'} · POSTED {new Date(photo.createdAt).toLocaleString('ja-JP')}
         </div>
 
-        <div style={{ marginTop: 18, display: 'flex', justifyContent: 'center', gap: 10, flexWrap: 'wrap' }}>
+        <div style={{ marginTop: 18, display: 'flex', justifyContent: 'center', gap: 10, flexWrap: 'wrap', maxWidth: 900, marginInline: 'auto' }}>
           {reactionButtons.map(([key, emoji, label]) => (
             <button
               key={key}
