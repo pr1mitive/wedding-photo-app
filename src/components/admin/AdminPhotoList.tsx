@@ -3,6 +3,15 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Eyebrow, OrnamentDivider } from '@/components/shared/wedding-ui';
 
+type ReactionCounts = {
+  heart: number;
+  clap: number;
+  wow: number;
+  cry: number;
+  fire: number;
+  total: number;
+};
+
 type Photo = {
   id: string;
   thumbUrl: string;
@@ -14,14 +23,16 @@ type Photo = {
   isFavorite: boolean;
   isHighlight: boolean;
   isHidden: boolean;
+  isRecommended: boolean;
   createdAt: string;
+  reactions: ReactionCounts;
 };
 
 type Props = {
   eventCode: string;
 };
 
-type FilterType = 'all' | 'favorite' | 'highlight' | 'hidden';
+type FilterType = 'all' | 'favorite' | 'highlight' | 'recommended' | 'hidden';
 
 export default function AdminPhotoList({ eventCode }: Props) {
   const [photos, setPhotos] = useState<Photo[]>([]);
@@ -52,10 +63,14 @@ export default function AdminPhotoList({ eventCode }: Props) {
         filter === 'all' ||
         (filter === 'favorite' && photo.isFavorite) ||
         (filter === 'highlight' && photo.isHighlight) ||
+        (filter === 'recommended' && photo.isRecommended) ||
         (filter === 'hidden' && photo.isHidden);
 
       const matchQuery =
-        !q || photo.guestName.includes(q) || photo.comment?.includes(q) || photo.timelineLabel?.includes(q);
+        !q ||
+        photo.guestName.includes(q) ||
+        photo.comment?.includes(q) ||
+        photo.timelineLabel?.includes(q);
 
       return matchFilter && matchQuery;
     });
@@ -110,6 +125,7 @@ export default function AdminPhotoList({ eventCode }: Props) {
                 ['all', `すべて (${photos.length})`],
                 ['favorite', `お気に入り (${photos.filter((p) => p.isFavorite).length})`],
                 ['highlight', `ハイライト (${photos.filter((p) => p.isHighlight).length})`],
+                ['recommended', `おすすめ枠 (${photos.filter((p) => p.isRecommended).length})`],
                 ['hidden', `非表示 (${photos.filter((p) => p.isHidden).length})`],
               ].map(([key, label]) => (
                 <button
@@ -132,7 +148,7 @@ export default function AdminPhotoList({ eventCode }: Props) {
             <div style={{ marginTop: 18, display: 'grid', gap: 10 }}>
               <Metric label="TOTAL POSTS" value={photos.length} />
               <Metric label="VISIBLE" value={photos.filter((p) => !p.isHidden).length} />
-              <Metric label="HIGHLIGHT" value={photos.filter((p) => p.isHighlight).length} />
+              <Metric label="REACTIONS" value={photos.reduce((sum, photo) => sum + photo.reactions.total, 0)} />
             </div>
 
             <button type="button" className="btn-secondary title-serif" style={{ width: '100%', marginTop: 18 }} onClick={fetchPhotos}>
@@ -170,8 +186,14 @@ export default function AdminPhotoList({ eventCode }: Props) {
                     <div style={{ position: 'absolute', left: 8, top: 8, display: 'flex', gap: 6, flexWrap: 'wrap' }}>
                       {photo.isFavorite && <Badge label="FAV" />}
                       {photo.isHighlight && <Badge label="UP" />}
+                      {photo.isRecommended && <Badge label="PICK" />}
                       {photo.isHidden && <Badge label="HIDE" />}
                     </div>
+                    {photo.reactions.total > 0 && (
+                      <div style={{ position: 'absolute', right: 8, bottom: 8, background: 'rgba(251,249,244,0.92)', border: '1px solid rgba(184,151,92,0.75)', padding: '4px 8px', fontSize: 10, color: 'var(--gold)' }}>
+                        ♥ {photo.reactions.total}
+                      </div>
+                    )}
                   </div>
                   <div style={{ padding: '10px 4px 2px' }}>
                     <div className="title-jp" style={{ fontSize: 13 }}>{photo.guestName}</div>
@@ -212,12 +234,24 @@ export default function AdminPhotoList({ eventCode }: Props) {
                   </div>
                 </div>
 
+                <div style={{ marginTop: 14, display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0,1fr))', gap: 8 }}>
+                  <ReactionStat label="♡" value={selected.reactions.heart} />
+                  <ReactionStat label="👏" value={selected.reactions.clap} />
+                  <ReactionStat label="✨" value={selected.reactions.wow} />
+                  <ReactionStat label="🥲" value={selected.reactions.cry} />
+                  <ReactionStat label="🔥" value={selected.reactions.fire} />
+                  <ReactionStat label="TOTAL" value={selected.reactions.total} />
+                </div>
+
                 <div style={{ marginTop: 16, display: 'grid', gap: 8 }}>
                   <button type="button" onClick={() => updatePhoto(selected.id, { isFavorite: !selected.isFavorite }, selected.isFavorite ? 'お気に入りを解除しました' : 'お気に入りに追加しました')} className="actionButton">
                     お気に入り: {selected.isFavorite ? 'ON' : 'OFF'}
                   </button>
                   <button type="button" onClick={() => updatePhoto(selected.id, { isHighlight: !selected.isHighlight }, selected.isHighlight ? 'アップ表示を解除しました' : 'アップ表示に設定しました')} className="actionButton">
                     モニター大表示: {selected.isHighlight ? 'ON' : 'OFF'}
+                  </button>
+                  <button type="button" onClick={() => updatePhoto(selected.id, { isRecommended: !selected.isRecommended }, selected.isRecommended ? 'おすすめ枠から外しました' : 'おすすめ枠に設定しました')} className="actionButton">
+                    今のおすすめ写真: {selected.isRecommended ? 'ON' : 'OFF'}
                   </button>
                   <button type="button" onClick={() => updatePhoto(selected.id, { isHidden: !selected.isHidden }, selected.isHidden ? '再表示しました' : '非表示にしました')} className="actionButton">
                     非表示: {selected.isHidden ? 'ON' : 'OFF'}
@@ -262,5 +296,14 @@ function Badge({ label }: { label: string }) {
     <span style={{ fontSize: 9, letterSpacing: '0.15em', background: 'rgba(251,249,244,0.92)', border: '1px solid rgba(184,151,92,0.75)', color: 'var(--gold)', padding: '3px 6px' }}>
       {label}
     </span>
+  );
+}
+
+function ReactionStat({ label, value }: { label: string; value: number }) {
+  return (
+    <div className="wedding-panel" style={{ padding: '10px 8px', textAlign: 'center' }}>
+      <div className="title-serif" style={{ fontSize: 12, color: 'var(--gold)' }}>{label}</div>
+      <div style={{ marginTop: 4, fontSize: 12, color: 'var(--ink)' }}>{value}</div>
+    </div>
   );
 }

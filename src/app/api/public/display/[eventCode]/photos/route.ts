@@ -18,15 +18,13 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ even
 
   let query = supabaseAdmin
     .from('photos')
-    .select('id, display_path, guest_name, comment, created_at, is_highlight')
+    .select('id, display_path, guest_name, comment, created_at, is_highlight, is_recommended')
     .eq('event_id', eventRow.id)
     .eq('is_hidden', false)
     .limit(limit);
 
   if (orderType === 'newest') {
     query = query.order('created_at', { ascending: false });
-  } else if (orderType === 'random') {
-    query = query.order('created_at', { ascending: true });
   } else {
     query = query.order('created_at', { ascending: true });
   }
@@ -37,6 +35,27 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ even
   }
 
   const rows = orderType === 'random' ? [...(data || [])].sort(() => Math.random() - 0.5) : data || [];
+  const photoIds = rows.map((row) => row.id);
+  const reactionResult = photoIds.length
+    ? await supabaseAdmin
+        .from('photo_reaction_counts')
+        .select('photo_id, heart_count, clap_count, wow_count, cry_count, fire_count, total_count')
+        .in('photo_id', photoIds)
+    : { data: [] as any[] };
+
+  const reactionMap = new Map(
+    (reactionResult.data || []).map((row) => [
+      row.photo_id,
+      {
+        heart: row.heart_count ?? 0,
+        clap: row.clap_count ?? 0,
+        wow: row.wow_count ?? 0,
+        cry: row.cry_count ?? 0,
+        fire: row.fire_count ?? 0,
+        total: row.total_count ?? 0,
+      },
+    ]),
+  );
 
   const photos = await Promise.all(
     rows.map(async (row) => {
@@ -48,6 +67,8 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ even
         comment: row.comment,
         createdAt: row.created_at,
         isHighlight: row.is_highlight,
+        isRecommended: row.is_recommended,
+        reactions: reactionMap.get(row.id) || { heart: 0, clap: 0, wow: 0, cry: 0, fire: 0, total: 0 },
       };
     }),
   );

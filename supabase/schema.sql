@@ -37,13 +37,25 @@ create table if not exists public.display_settings (
   order_type text not null default 'chronological',
   show_comment boolean not null default true,
   highlight_priority boolean not null default true,
+  current_mission_title text,
+  current_mission_description text,
+  current_mission_active boolean not null default false,
+  auto_highlight_enabled boolean not null default false,
+  auto_highlight_interval_sec integer not null default 20,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
   constraint display_settings_slide_interval_check check (slide_interval_sec between 2 and 15),
   constraint display_settings_focus_duration_check check (focus_duration_sec between 3 and 10),
   constraint display_settings_transition_type_check check (transition_type in ('fade', 'zoom', 'slide')),
-  constraint display_settings_order_type_check check (order_type in ('chronological', 'newest', 'random'))
+  constraint display_settings_order_type_check check (order_type in ('chronological', 'newest', 'random')),
+  constraint display_settings_auto_highlight_interval_check check (auto_highlight_interval_sec between 10 and 120)
 );
+
+alter table public.display_settings add column if not exists current_mission_title text;
+alter table public.display_settings add column if not exists current_mission_description text;
+alter table public.display_settings add column if not exists current_mission_active boolean not null default false;
+alter table public.display_settings add column if not exists auto_highlight_enabled boolean not null default false;
+alter table public.display_settings add column if not exists auto_highlight_interval_sec integer not null default 20;
 
 create trigger trg_display_settings_updated_at
 before update on public.display_settings
@@ -65,6 +77,7 @@ create table if not exists public.photos (
   is_favorite boolean not null default false,
   is_highlight boolean not null default false,
   is_hidden boolean not null default false,
+  is_recommended boolean not null default false,
   upload_status text not null default 'completed',
   client_upload_id text not null,
   created_at timestamptz not null default now(),
@@ -74,11 +87,14 @@ create table if not exists public.photos (
   constraint photos_upload_status_check check (upload_status in ('pending', 'completed', 'failed'))
 );
 
+alter table public.photos add column if not exists is_recommended boolean not null default false;
+
 create unique index if not exists ux_photos_event_client_upload_id on public.photos(event_id, client_upload_id);
 create index if not exists ix_photos_event_created_at on public.photos(event_id, created_at desc);
 create index if not exists ix_photos_event_hidden_created on public.photos(event_id, is_hidden, created_at desc);
 create index if not exists ix_photos_event_favorite on public.photos(event_id, is_favorite, created_at desc);
 create index if not exists ix_photos_event_highlight on public.photos(event_id, is_highlight, created_at desc);
+create index if not exists ix_photos_event_recommended on public.photos(event_id, is_recommended, created_at desc);
 create index if not exists ix_photos_event_timeline on public.photos(event_id, timeline_label, created_at desc);
 create index if not exists ix_photos_event_guest_name on public.photos(event_id, guest_name);
 
@@ -86,10 +102,66 @@ create trigger trg_photos_updated_at
 before update on public.photos
 for each row execute function public.set_updated_at();
 
-insert into public.events (title, event_code, description, album_public_until, is_active)
-values ('Taro & Hanako Wedding', 'wedding-test', '結婚式テストイベント', now() + interval '7 days', true)
-on conflict (event_code) do nothing;
+create table if not exists public.photo_reactions (
+  id uuid primary key default gen_random_uuid(),
+  photo_id uuid not null references public.photos(id) on delete cascade,
+  guest_token text not null,
+  reaction_type text not null,
+  created_at timestamptz not null default now(),
+  constraint photo_reactions_reaction_type_check check (reaction_type in ('heart', 'clap', 'wow', 'cry', 'fire')),
+  constraint photo_reactions_unique_per_guest unique (photo_id, guest_token, reaction_type)
+);
 
-insert into public.display_settings (event_id, slide_interval_sec, focus_duration_sec, transition_type, order_type, show_comment, highlight_priority)
-select id, 5, 4, 'fade', 'chronological', true, true from public.events where event_code = 'wedding-test'
-on conflict (event_id) do nothing;
+create index if not exists ix_photo_reactions_photo_id on public.photo_reactions(photo_id, created_at desc);
+create index if not exists ix_photo_reactions_photo_type on public.photo_reactions(photo_id, reaction_type);
+
+create or replace view public.photo_reaction_counts as
+select
+  photo_id,
+  count(*) filter (where reaction_type = 'heart')::int as heart_count,
+  count(*) filter (where reaction_type = 'clap')::int as clap_count,
+  count(*) filter (where reaction_type = 'wow')::int as wow_count,
+  count(*) filter (where reaction_type = 'cry')::int as cry_count,
+  count(*) filter (where reaction_type = 'fire')::int as fire_count,
+  count(*)::int as total_count
+from public.photo_reactions
+group by photo_id;
+
+insert into public.events (title, event_code, description, album_public_until, is_active)
+values ('Wataru & Misaki Wedding', 'wedding-test', '結婚式テストイベント', now() + interval '30 days', true)
+on conflict (event_code) do update
+set title = excluded.title,
+    description = excluded.description;
+
+insert into public.display_settings (
+  event_id,
+  slide_interval_sec,
+  focus_duration_sec,
+  transition_type,
+  order_type,
+  show_comment,
+  highlight_priority,
+  current_mission_title,
+  current_mission_description,
+  current_mission_active,
+  auto_highlight_enabled,
+  auto_highlight_interval_sec
+)
+select
+  id,
+  5,
+  5,
+  'fade',
+  'chronological',
+  true,
+  true,
+  '乾杯の笑顔を集めよう',
+  '今だけの表情や拍手の瞬間をぜひ投稿してください。',
+  false,
+  false,
+  20
+from public.events
+where event_code = 'wedding-test'
+on conflict (event_id) do update
+set current_mission_title = coalesce(public.display_settings.current_mission_title, excluded.current_mission_title),
+    current_mission_description = coalesce(public.display_settings.current_mission_description, excluded.current_mission_description);

@@ -1,7 +1,16 @@
 'use client';
 
-import { useMemo, useState, type CSSProperties } from 'react';
+import { useEffect, useMemo, useState, type CSSProperties } from 'react';
 import { Eyebrow, OrnamentDivider } from '@/components/shared/wedding-ui';
+
+export type ReactionCounts = {
+  heart: number;
+  clap: number;
+  wow: number;
+  cry: number;
+  fire: number;
+  total: number;
+};
 
 export type AlbumPhoto = {
   id: string;
@@ -12,35 +21,52 @@ export type AlbumPhoto = {
   timelineLabel: string | null;
   isFavorite: boolean;
   isHighlight: boolean;
+  isRecommended: boolean;
   createdAt: string;
+  reactions: ReactionCounts;
 };
 
 type Props = {
   photos: AlbumPhoto[];
 };
 
-type FilterKey = 'all' | 'highlight' | 'favorite';
+type FilterKey = 'all' | 'highlight' | 'favorite' | 'recommended';
+
+const STORAGE_KEY = 'wedding-photo-app:reaction-guest-token';
+const reactionButtons = [
+  ['heart', '♡', 'いいね'],
+  ['clap', '👏', '拍手'],
+  ['wow', '✨', 'すごい'],
+  ['cry', '🥲', '感動'],
+  ['fire', '🔥', '最高'],
+] as const;
 
 export default function AlbumGallery({ photos }: Props) {
   const [selected, setSelected] = useState<number | null>(null);
   const [filter, setFilter] = useState<FilterKey>('all');
   const [selectedTimeline, setSelectedTimeline] = useState<string>('all');
+  const [photoState, setPhotoState] = useState<AlbumPhoto[]>(photos);
 
-  const timelineOptions = useMemo(() => {
-    const values = Array.from(new Set(photos.map((photo) => photo.timelineLabel).filter(Boolean))) as string[];
-    return ['all', ...values];
+  useEffect(() => {
+    setPhotoState(photos);
   }, [photos]);
 
+  const timelineOptions = useMemo(() => {
+    const values = Array.from(new Set(photoState.map((photo) => photo.timelineLabel).filter(Boolean))) as string[];
+    return ['all', ...values];
+  }, [photoState]);
+
   const filteredPhotos = useMemo(() => {
-    return photos.filter((photo) => {
+    return photoState.filter((photo) => {
       const matchesFilter =
         filter === 'all' ||
         (filter === 'highlight' && photo.isHighlight) ||
-        (filter === 'favorite' && photo.isFavorite);
+        (filter === 'favorite' && photo.isFavorite) ||
+        (filter === 'recommended' && photo.isRecommended);
       const matchesTimeline = selectedTimeline === 'all' || photo.timelineLabel === selectedTimeline;
       return matchesFilter && matchesTimeline;
     });
-  }, [filter, photos, selectedTimeline]);
+  }, [filter, photoState, selectedTimeline]);
 
   const rows = useMemo(() => {
     const source = filteredPhotos;
@@ -56,6 +82,21 @@ export default function AlbumGallery({ photos }: Props) {
 
   const selectedPhoto = selected !== null ? filteredPhotos[selected] : null;
 
+  const handleReact = async (photoId: string, reactionType: string) => {
+    const token = getGuestToken();
+    const res = await fetch(`/api/public/photos/${photoId}/reactions`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ reactionType, guestToken: token }),
+    });
+    const json = await res.json();
+    if (!res.ok || !json.success) {
+      throw new Error(json?.error?.message || 'リアクションに失敗しました');
+    }
+
+    setPhotoState((current) => current.map((photo) => (photo.id === photoId ? { ...photo, reactions: json.data.reactions } : photo)));
+  };
+
   return (
     <>
       <div style={{ display: 'flex', justifyContent: 'space-between', gap: 14, flexWrap: 'wrap', marginBottom: 20 }}>
@@ -64,6 +105,7 @@ export default function AlbumGallery({ photos }: Props) {
             ['all', 'ALL'],
             ['highlight', 'ハイライト'],
             ['favorite', 'お気に入り'],
+            ['recommended', 'おすすめ'],
           ].map(([key, label]) => (
             <button
               key={key}
@@ -149,9 +191,13 @@ export default function AlbumGallery({ photos }: Props) {
                       <img src={photo.src} alt={photo.guestName} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                       <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(180deg, transparent 40%, rgba(0,0,0,0.42))' }} />
                       <div style={{ position: 'absolute', left: 12, top: 12, display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                        {photo.isRecommended && <Chip label="PICK" />}
                         {photo.isHighlight && <Chip label="HIGHLIGHT" />}
                         {photo.isFavorite && <Chip label="FAVORITE" />}
                         {photo.timelineLabel && <Chip label={photo.timelineLabel} />}
+                      </div>
+                      <div style={{ position: 'absolute', right: 12, top: 12 }}>
+                        <Chip label={`♡ ${photo.reactions.total}`} dark />
                       </div>
                       <div style={{ position: 'absolute', left: 14, right: 14, bottom: 12, color: '#fff' }}>
                         <div className="title-serif" style={{ fontSize: 10, letterSpacing: '0.2em', color: '#f3dec0' }}>
@@ -176,6 +222,7 @@ export default function AlbumGallery({ photos }: Props) {
           onClose={() => setSelected(null)}
           onPrev={() => setSelected(((selected ?? 0) - 1 + filteredPhotos.length) % filteredPhotos.length)}
           onNext={() => setSelected(((selected ?? 0) + 1) % filteredPhotos.length)}
+          onReact={handleReact}
         />
       )}
     </>
@@ -189,6 +236,7 @@ function Lightbox({
   onClose,
   onPrev,
   onNext,
+  onReact,
 }: {
   photo: AlbumPhoto;
   index: number;
@@ -196,7 +244,24 @@ function Lightbox({
   onClose: () => void;
   onPrev: () => void;
   onNext: () => void;
+  onReact: (photoId: string, reactionType: string) => Promise<void>;
 }) {
+  const [busy, setBusy] = useState<string>('');
+  const [message, setMessage] = useState('');
+
+  const clickReaction = async (reactionType: string, label: string) => {
+    setBusy(reactionType);
+    setMessage('');
+    try {
+      await onReact(photo.id, reactionType);
+      setMessage(`${label} を送りました`);
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : 'リアクションに失敗しました');
+    } finally {
+      setBusy('');
+    }
+  };
+
   return (
     <div
       onClick={onClose}
@@ -229,19 +294,44 @@ function Lightbox({
         <OrnamentDivider wide={72} />
         <div className="title-jp" style={{ fontSize: 16, marginTop: 14, lineHeight: 1.8 }}>「{photo.comment || 'コメントなし'}」</div>
         <div style={{ marginTop: 8, fontSize: 10, letterSpacing: '0.18em', color: '#f3dec0' }}>
+          {photo.isRecommended ? 'NOW PICK · ' : ''}
           {photo.timelineLabel || 'MEMORY'} · POSTED {new Date(photo.createdAt).toLocaleString('ja-JP')}
         </div>
+
+        <div style={{ marginTop: 18, display: 'flex', justifyContent: 'center', gap: 10, flexWrap: 'wrap' }}>
+          {reactionButtons.map(([key, emoji, label]) => (
+            <button
+              key={key}
+              type="button"
+              onClick={() => clickReaction(key, label)}
+              disabled={busy === key}
+              style={{ border: '1px solid rgba(243,222,192,0.5)', background: 'rgba(251,249,244,0.08)', color: '#f8f1e6', padding: '8px 12px', cursor: 'pointer' }}
+            >
+              {emoji} {photo.reactions[key as keyof ReactionCounts]} {label}
+            </button>
+          ))}
+        </div>
+        {message && <div style={{ marginTop: 10, fontSize: 11, color: '#f3dec0' }}>{message}</div>}
       </div>
     </div>
   );
 }
 
-function Chip({ label }: { label: string }) {
+function Chip({ label, dark = false }: { label: string; dark?: boolean }) {
   return (
-    <span style={{ fontSize: 9, letterSpacing: '0.12em', background: 'rgba(251,249,244,0.92)', border: '1px solid rgba(184,151,92,0.75)', color: 'var(--gold)', padding: '3px 6px' }}>
+    <span style={{ fontSize: 9, letterSpacing: '0.12em', background: dark ? 'rgba(42,38,34,0.82)' : 'rgba(251,249,244,0.92)', border: '1px solid rgba(184,151,92,0.75)', color: dark ? '#fff' : 'var(--gold)', padding: '3px 6px' }}>
       {label}
     </span>
   );
+}
+
+function getGuestToken() {
+  if (typeof window === 'undefined') return 'guest-server';
+  const existing = window.localStorage.getItem(STORAGE_KEY);
+  if (existing) return existing;
+  const created = `${Date.now()}-${Math.random().toString(36).slice(2, 12)}`;
+  window.localStorage.setItem(STORAGE_KEY, created);
+  return created;
 }
 
 const navButtonStyle: CSSProperties = {

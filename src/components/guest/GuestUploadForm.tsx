@@ -7,6 +7,12 @@ type Props = {
   eventCode: string;
 };
 
+type MissionState = {
+  title: string | null;
+  description: string | null;
+  active: boolean;
+};
+
 const STORAGE_KEY = 'wedding-photo-app:guest-profile';
 
 export default function GuestUploadForm({ eventCode }: Props) {
@@ -18,6 +24,7 @@ export default function GuestUploadForm({ eventCode }: Props) {
   const [comment, setComment] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [mission, setMission] = useState<MissionState>({ title: null, description: null, active: false });
 
   const previewUrl = useMemo(() => (file ? URL.createObjectURL(file) : ''), [file]);
 
@@ -46,6 +53,25 @@ export default function GuestUploadForm({ eventCode }: Props) {
       // ignore storage write failures
     }
   }, [guestName, nickname]);
+
+  useEffect(() => {
+    const loadMission = async () => {
+      try {
+        const res = await fetch(`/api/public/display/${eventCode}/settings`, { cache: 'no-store' });
+        const json = await res.json();
+        if (!json.success) return;
+        setMission({
+          title: json.data.settings.currentMissionTitle ?? null,
+          description: json.data.settings.currentMissionDescription ?? null,
+          active: json.data.settings.currentMissionActive ?? false,
+        });
+      } catch {
+        // ignore fetch failure
+      }
+    };
+
+    loadMission();
+  }, [eventCode]);
 
   const canSubmit = !!file && guestName.trim().length > 0 && !loading;
 
@@ -89,6 +115,14 @@ export default function GuestUploadForm({ eventCode }: Props) {
           ふたりへ贈ってください
         </p>
       </div>
+
+      {mission.active && (mission.title || mission.description) && (
+        <div style={{ padding: '16px 24px', borderBottom: '1px solid var(--hair-soft)', background: 'rgba(243,228,225,0.34)' }}>
+          <div className="title-serif" style={{ fontSize: 11, color: 'var(--gold)', letterSpacing: '0.28em' }}>MISSION NOW</div>
+          {mission.title && <div className="title-jp" style={{ fontSize: 18, marginTop: 6, lineHeight: 1.6 }}>{mission.title}</div>}
+          {mission.description && <div style={{ marginTop: 6, fontSize: 12, lineHeight: 1.8, color: 'var(--ink-70)' }}>{mission.description}</div>}
+        </div>
+      )}
 
       <div style={{ padding: '18px 24px 14px', borderBottom: '1px solid var(--hair-soft)' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>

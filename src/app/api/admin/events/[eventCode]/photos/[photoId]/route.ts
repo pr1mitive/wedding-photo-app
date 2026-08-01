@@ -28,6 +28,7 @@ export async function PATCH(
       is_favorite: parsed.data.isFavorite,
       is_highlight: parsed.data.isHighlight,
       is_hidden: parsed.data.isHidden,
+      is_recommended: parsed.data.isRecommended,
       timeline_label: parsed.data.timelineLabel,
     }).filter(([, value]) => value !== undefined),
   );
@@ -44,7 +45,7 @@ export async function PATCH(
     .update(payload)
     .eq('event_id', access.eventId)
     .eq('id', photoId)
-    .select('id, thumb_path, display_path, original_path, guest_name, comment, timeline_label, is_favorite, is_highlight, is_hidden, created_at')
+    .select('id, thumb_path, display_path, original_path, guest_name, comment, timeline_label, is_favorite, is_highlight, is_hidden, is_recommended, created_at')
     .single();
 
   if (error || !data) {
@@ -54,11 +55,25 @@ export async function PATCH(
     );
   }
 
-  const [thumbSigned, displaySigned, originalSigned] = await Promise.all([
+  const [thumbSigned, displaySigned, originalSigned, reactionRow] = await Promise.all([
     supabaseAdmin.storage.from('wedding-thumbs').createSignedUrl(data.thumb_path, 60 * 60),
     supabaseAdmin.storage.from('wedding-display').createSignedUrl(data.display_path, 60 * 60),
     supabaseAdmin.storage.from('wedding-originals').createSignedUrl(data.original_path, 60 * 60),
+    supabaseAdmin
+      .from('photo_reaction_counts')
+      .select('heart_count, clap_count, wow_count, cry_count, fire_count, total_count')
+      .eq('photo_id', data.id)
+      .maybeSingle(),
   ]);
+
+  const reactions = {
+    heart: reactionRow.data?.heart_count ?? 0,
+    clap: reactionRow.data?.clap_count ?? 0,
+    wow: reactionRow.data?.wow_count ?? 0,
+    cry: reactionRow.data?.cry_count ?? 0,
+    fire: reactionRow.data?.fire_count ?? 0,
+    total: reactionRow.data?.total_count ?? 0,
+  };
 
   return NextResponse.json({
     success: true,
@@ -74,7 +89,9 @@ export async function PATCH(
         isFavorite: data.is_favorite,
         isHighlight: data.is_highlight,
         isHidden: data.is_hidden,
+        isRecommended: data.is_recommended,
         createdAt: data.created_at,
+        reactions,
       },
     },
   });

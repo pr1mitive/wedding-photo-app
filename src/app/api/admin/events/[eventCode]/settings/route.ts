@@ -21,17 +21,23 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ ev
   }
 
   const settingsPayload = {
+    event_id: access.eventId,
     slide_interval_sec: parsed.data.slideIntervalSec,
     focus_duration_sec: parsed.data.focusDurationSec,
     transition_type: parsed.data.transitionType,
     order_type: parsed.data.orderType,
     show_comment: parsed.data.showComment,
     highlight_priority: parsed.data.highlightPriority,
+    current_mission_title: parsed.data.currentMissionTitle ?? null,
+    current_mission_description: parsed.data.currentMissionDescription ?? null,
+    current_mission_active: parsed.data.currentMissionActive ?? false,
+    auto_highlight_enabled: parsed.data.autoHighlightEnabled ?? false,
+    auto_highlight_interval_sec: parsed.data.autoHighlightIntervalSec ?? 20,
   };
 
   const { error: settingsError } = await supabaseAdmin
     .from('display_settings')
-    .upsert({ event_id: access.eventId, ...settingsPayload }, { onConflict: 'event_id' });
+    .upsert(settingsPayload, { onConflict: 'event_id' });
 
   if (settingsError) {
     return NextResponse.json(

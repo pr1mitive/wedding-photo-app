@@ -3,6 +3,15 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import { Eyebrow, OrnamentDivider } from '@/components/shared/wedding-ui';
 
+type ReactionCounts = {
+  heart: number;
+  clap: number;
+  wow: number;
+  cry: number;
+  fire: number;
+  total: number;
+};
+
 type Photo = {
   id: string;
   displayUrl: string;
@@ -10,6 +19,8 @@ type Photo = {
   comment: string | null;
   createdAt: string;
   isHighlight: boolean;
+  isRecommended: boolean;
+  reactions: ReactionCounts;
 };
 
 type DisplaySettings = {
@@ -19,6 +30,11 @@ type DisplaySettings = {
   orderType: 'chronological' | 'newest' | 'random';
   showComment: boolean;
   highlightPriority: boolean;
+  currentMissionTitle: string | null;
+  currentMissionDescription: string | null;
+  currentMissionActive: boolean;
+  autoHighlightEnabled: boolean;
+  autoHighlightIntervalSec: number;
 };
 
 type Props = {
@@ -32,6 +48,11 @@ const DEFAULT_SETTINGS: DisplaySettings = {
   orderType: 'chronological',
   showComment: true,
   highlightPriority: true,
+  currentMissionTitle: null,
+  currentMissionDescription: null,
+  currentMissionActive: false,
+  autoHighlightEnabled: false,
+  autoHighlightIntervalSec: 20,
 };
 
 const COLUMN_COUNT = 5;
@@ -41,8 +62,11 @@ export default function DisplaySlideshow({ eventCode }: Props) {
   const [settings, setSettings] = useState<DisplaySettings>(DEFAULT_SETTINGS);
   const [loading, setLoading] = useState(true);
   const [focusPhoto, setFocusPhoto] = useState<Photo | null>(null);
+  const [focusMode, setFocusMode] = useState<'new' | 'highlight'>('new');
   const knownIdsRef = useRef<Set<string>>(new Set());
   const hasLoadedRef = useRef(false);
+  const replayCursorRef = useRef(0);
+  const lastAutoHighlightAtRef = useRef(0);
 
   const latestPhoto = useMemo(() => {
     return [...photos].sort((a, b) => +new Date(b.createdAt) - +new Date(a.createdAt))[0] ?? null;
@@ -59,10 +83,20 @@ export default function DisplaySlideshow({ eventCode }: Props) {
     return Array.from({ length: COLUMN_COUNT }, (_, columnIndex) => repeated.filter((_, idx) => idx % COLUMN_COUNT === columnIndex));
   }, [photos]);
 
+  const recommendedPhoto = useMemo(() => {
+    return photos.find((photo) => photo.isRecommended) ?? photos.find((photo) => photo.isHighlight) ?? latestPhoto ?? null;
+  }, [photos, latestPhoto]);
+
+  const highlightPool = useMemo(() => {
+    const recommended = photos.filter((photo) => photo.isRecommended);
+    const highlighted = photos.filter((photo) => photo.isHighlight && !photo.isRecommended);
+    return [...recommended, ...highlighted];
+  }, [photos]);
+
   const fetchSettings = async () => {
     const res = await fetch(`/api/public/display/${eventCode}/settings`, { cache: 'no-store' });
     const json = await res.json();
-    if (json.success?.valueOf()) {
+    if (json.success) {
       setSettings({ ...DEFAULT_SETTINGS, ...json.data.settings });
     }
   };
@@ -84,6 +118,7 @@ export default function DisplaySlideshow({ eventCode }: Props) {
 
       if (newItems[0]) {
         setFocusPhoto(newItems[0]);
+        setFocusMode('new');
       }
     } else {
       hasLoadedRef.current = true;
@@ -120,6 +155,23 @@ export default function DisplaySlideshow({ eventCode }: Props) {
     return () => clearTimeout(timer);
   }, [focusPhoto, settings.focusDurationSec]);
 
+  useEffect(() => {
+    if (!settings.autoHighlightEnabled || focusPhoto || !highlightPool.length) return;
+
+    const timer = setInterval(() => {
+      const now = Date.now();
+      if (focusPhoto) return;
+      if (now - lastAutoHighlightAtRef.current < settings.autoHighlightIntervalSec * 1000) return;
+      const next = highlightPool[replayCursorRef.current % highlightPool.length];
+      replayCursorRef.current += 1;
+      lastAutoHighlightAtRef.current = now;
+      setFocusMode('highlight');
+      setFocusPhoto(next);
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, [settings.autoHighlightEnabled, settings.autoHighlightIntervalSec, highlightPool, focusPhoto]);
+
   if (loading) {
     return <MonitorMessage message="写真を読み込んでいます" sub="会場モニターの準備中です" />;
   }
@@ -153,9 +205,12 @@ export default function DisplaySlideshow({ eventCode }: Props) {
         }
         @media (max-width: 1100px) {
           .monitor-collage { grid-template-columns: repeat(4, 1fr) !important; }
+          .monitor-topbar { flex-direction: column; align-items: stretch !important; }
         }
         @media (max-width: 820px) {
           .monitor-collage { grid-template-columns: repeat(3, 1fr) !important; }
+          .monitor-mission { display: none; }
+          .monitor-recommended { right: 18px !important; bottom: 78px !important; width: 210px !important; }
         }
       `}</style>
 
@@ -166,14 +221,27 @@ export default function DisplaySlideshow({ eventCode }: Props) {
 
       <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(180deg, rgba(251,249,244,0.82) 0%, rgba(245,239,230,0.44) 22%, rgba(245,239,230,0.34) 78%, rgba(251,249,244,0.9) 100%)', pointerEvents: 'none', zIndex: 1 }} />
 
-      <div style={{ position: 'relative', zIndex: 2, padding: '28px 44px 0', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 20 }}>
-        <div>
-          <Eyebrow>Live Photo Stream</Eyebrow>
-          <h1 className="title-jp" style={{ fontSize: 24, fontWeight: 400, letterSpacing: '0.1em', marginTop: 6 }}>みんなの写真が背景に流れています</h1>
+      <div className="monitor-topbar" style={{ position: 'relative', zIndex: 2, padding: '24px 44px 0', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 20 }}>
+        <div style={{ display: 'grid', gap: 14 }}>
+          <div>
+            <Eyebrow>Live Photo Stream</Eyebrow>
+            <h1 className="title-jp" style={{ fontSize: 24, fontWeight: 400, letterSpacing: '0.1em', marginTop: 6 }}>みんなの写真が背景に流れています</h1>
+          </div>
+
+          {settings.currentMissionActive && (settings.currentMissionTitle || settings.currentMissionDescription) && (
+            <div className="monitor-mission" style={{ border: '1px solid rgba(184,151,92,0.42)', background: 'rgba(251,249,244,0.84)', padding: '12px 16px', width: 'fit-content', maxWidth: 520, boxShadow: '0 24px 60px -42px rgba(42,38,34,0.32)' }}>
+              <div className="title-serif" style={{ fontSize: 11, letterSpacing: '0.28em', color: 'var(--gold)' }}>MISSION NOW</div>
+              {settings.currentMissionTitle && <div className="title-jp" style={{ marginTop: 6, fontSize: 17, lineHeight: 1.5 }}>{settings.currentMissionTitle}</div>}
+              {settings.currentMissionDescription && <div style={{ marginTop: 6, fontSize: 12, color: 'var(--ink-70)', lineHeight: 1.8 }}>{settings.currentMissionDescription}</div>}
+            </div>
+          )}
         </div>
+
         <div style={{ textAlign: 'right' }}>
           <div className="title-serif" style={{ color: 'var(--gold)', letterSpacing: '0.28em', fontSize: 12 }}>WATARU &amp; MISAKI</div>
-          <div style={{ fontSize: 10, letterSpacing: '0.2em', color: 'var(--ink-50)', marginTop: 4 }}>NEW POST FOCUS · {settings.focusDurationSec} SEC</div>
+          <div style={{ fontSize: 10, letterSpacing: '0.2em', color: 'var(--ink-50)', marginTop: 4 }}>
+            {focusMode === 'highlight' ? 'HIGHLIGHT REPLAY' : 'NEW POST FOCUS'} · {settings.focusDurationSec} SEC
+          </div>
         </div>
       </div>
 
@@ -181,7 +249,7 @@ export default function DisplaySlideshow({ eventCode }: Props) {
         className="monitor-collage"
         style={{
           position: 'absolute',
-          inset: '88px 30px 92px',
+          inset: '92px 30px 92px',
           zIndex: 0,
           display: 'grid',
           gridTemplateColumns: `repeat(${COLUMN_COUNT}, 1fr)`,
@@ -206,7 +274,7 @@ export default function DisplaySlideshow({ eventCode }: Props) {
                       position: 'relative',
                       height: tileHeight,
                       overflow: 'hidden',
-                      border: '1px solid rgba(184,151,92,0.42)',
+                      border: photo.isRecommended ? '1px solid rgba(184,151,92,0.82)' : '1px solid rgba(184,151,92,0.42)',
                       background: 'rgba(255,255,255,0.58)',
                       boxShadow: '0 18px 36px -30px rgba(42,38,34,0.35)',
                     }}
@@ -214,7 +282,9 @@ export default function DisplaySlideshow({ eventCode }: Props) {
                     <img src={photo.displayUrl} alt={photo.guestName} style={{ width: '100%', height: '100%', objectFit: 'cover', filter: focusPhoto ? 'saturate(0.9) brightness(0.88)' : 'saturate(0.95) brightness(0.94)' }} />
                     <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(180deg, transparent 40%, rgba(20,16,12,0.42))' }} />
                     <div style={{ position: 'absolute', left: 10, bottom: 10, right: 10, color: '#fff' }}>
-                      <div className="title-serif" style={{ fontSize: 10, letterSpacing: '0.18em', color: '#f3dec0' }}>{photo.isHighlight ? 'HIGHLIGHT' : 'MEMORY'}</div>
+                      <div className="title-serif" style={{ fontSize: 10, letterSpacing: '0.18em', color: '#f3dec0' }}>
+                        {photo.isRecommended ? 'PICK' : photo.isHighlight ? 'HIGHLIGHT' : 'MEMORY'}
+                      </div>
                       <div className="title-jp" style={{ marginTop: 2, fontSize: 11, lineHeight: 1.5 }}>{photo.guestName}</div>
                     </div>
                   </div>
@@ -225,11 +295,29 @@ export default function DisplaySlideshow({ eventCode }: Props) {
         })}
       </div>
 
+      {recommendedPhoto && (
+        <div className="monitor-recommended" style={{ position: 'absolute', right: 28, bottom: 94, zIndex: 2, width: 240 }}>
+          <div className="wedding-card" style={{ padding: 10, background: 'rgba(251,249,244,0.88)', backdropFilter: 'blur(4px)' }}>
+            <div className="title-serif" style={{ fontSize: 11, letterSpacing: '0.24em', color: 'var(--gold)' }}>NOW PICK</div>
+            <div style={{ marginTop: 8 }} className="surface-frame">
+              <div className="surface-frame__inner">
+                <img src={recommendedPhoto.displayUrl} alt={recommendedPhoto.guestName} style={{ width: '100%', aspectRatio: '4 / 5', objectFit: 'cover' }} />
+              </div>
+            </div>
+            <div className="title-jp" style={{ marginTop: 10, fontSize: 13 }}>{recommendedPhoto.guestName}</div>
+            <div style={{ marginTop: 6, fontSize: 10, lineHeight: 1.7, color: 'var(--ink-70)' }}>
+              {recommendedPhoto.comment || '今のおすすめ写真として表示中'}
+            </div>
+            <ReactionStrip reactions={recommendedPhoto.reactions} compact />
+          </div>
+        </div>
+      )}
+
       {focusPhoto && (
         <div style={{ position: 'absolute', inset: 0, zIndex: 3, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '110px 56px 96px', background: 'rgba(255,249,242,0.18)', backdropFilter: 'blur(3px)' }}>
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', maxWidth: '100%', animation: 'focus-fade-in 0.5s ease forwards' }}>
             <div className="title-serif" style={{ fontStyle: 'italic', fontSize: 13, color: 'var(--gold)', letterSpacing: '0.32em', marginBottom: 12 }}>
-              ◇ NEW POST ◇
+              {focusMode === 'highlight' ? '◇ HIGHLIGHT REPLAY ◇' : '◇ NEW POST ◇'}
             </div>
 
             <div className="surface-frame" style={{ position: 'relative', boxShadow: '0 24px 70px -20px rgba(42,38,34,0.38)', background: 'rgba(255,255,255,0.95)' }}>
@@ -255,7 +343,7 @@ export default function DisplaySlideshow({ eventCode }: Props) {
               <DiamondCorner bottom />
             </div>
 
-            <div style={{ marginTop: 22, textAlign: 'center', maxWidth: 600 }}>
+            <div style={{ marginTop: 22, textAlign: 'center', maxWidth: 640 }}>
               <OrnamentDivider wide={64} />
               {settings.showComment && focusPhoto.comment && (
                 <div className="title-jp" style={{ fontSize: 18, lineHeight: 1.75, letterSpacing: '0.05em', marginTop: 14 }}>
@@ -265,6 +353,7 @@ export default function DisplaySlideshow({ eventCode }: Props) {
               <div className="title-serif" style={{ marginTop: 10, fontStyle: 'italic', fontSize: 14, letterSpacing: '0.18em', color: 'var(--gold)' }}>
                 — from {focusPhoto.guestName} —
               </div>
+              <ReactionStrip reactions={focusPhoto.reactions} />
             </div>
           </div>
         </div>
@@ -284,9 +373,38 @@ export default function DisplaySlideshow({ eventCode }: Props) {
             <span style={{ width: 6, height: 6, borderRadius: 999, background: 'var(--success)', boxShadow: '0 0 8px var(--success)' }} />
             LIVE
           </span>
-          <span>{focusPhoto ? '新着を拡大表示中' : '背景コラージュ表示中'}</span>
+          <span>
+            {focusMode === 'highlight' && focusPhoto
+              ? '終盤ハイライトを自動再生中'
+              : focusPhoto
+                ? '新着を拡大表示中'
+                : '背景コラージュ表示中'}
+          </span>
         </div>
       </div>
+    </div>
+  );
+}
+
+function ReactionStrip({ reactions, compact = false }: { reactions: ReactionCounts; compact?: boolean }) {
+  const items = [
+    ['♡', reactions.heart],
+    ['👏', reactions.clap],
+    ['✨', reactions.wow],
+    ['🥲', reactions.cry],
+    ['🔥', reactions.fire],
+  ] as const;
+
+  return (
+    <div style={{ marginTop: compact ? 10 : 16, display: 'flex', justifyContent: 'center', gap: compact ? 6 : 8, flexWrap: 'wrap' }}>
+      {items.map(([label, value]) => (
+        <span key={label} style={{ border: '1px solid rgba(184,151,92,0.5)', background: 'rgba(251,249,244,0.84)', padding: compact ? '4px 7px' : '5px 9px', fontSize: compact ? 10 : 11, color: 'var(--gold)' }}>
+          {label} {value}
+        </span>
+      ))}
+      <span style={{ border: '1px solid rgba(184,151,92,0.5)', background: 'rgba(42,38,34,0.85)', color: 'var(--ivory)', padding: compact ? '4px 7px' : '5px 9px', fontSize: compact ? 10 : 11 }}>
+        TOTAL {reactions.total}
+      </span>
     </div>
   );
 }

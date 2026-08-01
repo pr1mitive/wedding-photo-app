@@ -23,7 +23,7 @@ export async function GET(_: Request, { params }: { params: Promise<{ eventCode:
 
   const { data, error } = await supabaseAdmin
     .from('photos')
-    .select('id, display_path, original_path, guest_name, comment, timeline_label, is_favorite, is_highlight, created_at')
+    .select('id, display_path, original_path, guest_name, comment, timeline_label, is_favorite, is_highlight, is_recommended, created_at')
     .eq('event_id', eventRow.id)
     .eq('is_hidden', false)
     .order('created_at', { ascending: false });
@@ -31,6 +31,28 @@ export async function GET(_: Request, { params }: { params: Promise<{ eventCode:
   if (error) {
     return NextResponse.json({ success: false, error: { code: 'FETCH_FAILED', message: 'photos fetch failed' } }, { status: 500 });
   }
+
+  const photoIds = (data || []).map((row) => row.id);
+  const reactionResult = photoIds.length
+    ? await supabaseAdmin
+        .from('photo_reaction_counts')
+        .select('photo_id, heart_count, clap_count, wow_count, cry_count, fire_count, total_count')
+        .in('photo_id', photoIds)
+    : { data: [] as any[] };
+
+  const reactionMap = new Map(
+    (reactionResult.data || []).map((row) => [
+      row.photo_id,
+      {
+        heart: row.heart_count ?? 0,
+        clap: row.clap_count ?? 0,
+        wow: row.wow_count ?? 0,
+        cry: row.cry_count ?? 0,
+        fire: row.fire_count ?? 0,
+        total: row.total_count ?? 0,
+      },
+    ]),
+  );
 
   const photos = await Promise.all(
     (data || []).map(async (row) => {
@@ -48,7 +70,9 @@ export async function GET(_: Request, { params }: { params: Promise<{ eventCode:
         timelineLabel: row.timeline_label,
         isFavorite: row.is_favorite,
         isHighlight: row.is_highlight,
+        isRecommended: row.is_recommended,
         createdAt: row.created_at,
+        reactions: reactionMap.get(row.id) || { heart: 0, clap: 0, wow: 0, cry: 0, fire: 0, total: 0 },
       };
     }),
   );

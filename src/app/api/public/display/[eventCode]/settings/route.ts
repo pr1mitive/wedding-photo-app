@@ -16,7 +16,7 @@ export async function GET(_: Request, { params }: { params: Promise<{ eventCode:
 
   const { data: settings, error: settingsError } = await supabaseAdmin
     .from('display_settings')
-    .select('slide_interval_sec, focus_duration_sec, transition_type, order_type, show_comment, highlight_priority')
+    .select('slide_interval_sec, focus_duration_sec, transition_type, order_type, show_comment, highlight_priority, current_mission_title, current_mission_description, current_mission_active, auto_highlight_enabled, auto_highlight_interval_sec')
     .eq('event_id', eventRow.id)
     .maybeSingle();
 
@@ -38,6 +38,11 @@ export async function GET(_: Request, { params }: { params: Promise<{ eventCode:
         orderType: settings?.order_type ?? 'chronological',
         showComment: settings?.show_comment ?? true,
         highlightPriority: settings?.highlight_priority ?? true,
+        currentMissionTitle: settings?.current_mission_title ?? null,
+        currentMissionDescription: settings?.current_mission_description ?? null,
+        currentMissionActive: settings?.current_mission_active ?? false,
+        autoHighlightEnabled: settings?.auto_highlight_enabled ?? false,
+        autoHighlightIntervalSec: settings?.auto_highlight_interval_sec ?? 20,
       },
     },
   });
