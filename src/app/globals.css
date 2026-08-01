@@ -1,15 +1,170 @@
+@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400;500&family=Shippori+Mincho:wght@400;500&family=Inter:wght@400;500;600&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 :root {
   color-scheme: light;
+  --ivory: #fbf9f4;
+  --paper: #f5efe6;
+  --paper-deep: #efe7d9;
+  --ink: #2a2622;
+  --ink-70: rgba(42, 38, 34, 0.7);
+  --ink-50: rgba(42, 38, 34, 0.5);
+  --ink-30: rgba(42, 38, 34, 0.3);
+  --gold: #b8975c;
+  --gold-soft: #dcc48f;
+  --blush: #f3e4e1;
+  --hair: #e8dfcf;
+  --hair-soft: #f0e8d8;
+  --success: #8fb98a;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  min-height: 100%;
 }
 
 body {
-  @apply bg-rose-50 text-slate-900;
+  background: var(--ivory);
+  color: var(--ink);
+  font-family: 'Inter', 'Hiragino Kaku Gothic ProN', 'Yu Gothic', system-ui, sans-serif;
+}
+
+img {
+  max-width: 100%;
 }
 
 a {
-  @apply text-gold underline-offset-2 hover:underline;
+  color: inherit;
+  text-decoration: none;
+}
+
+button,
+input,
+textarea {
+  font: inherit;
+}
+
+.wedding-shell {
+  min-height: 100vh;
+  background:
+    radial-gradient(circle at top, rgba(243, 228, 225, 0.72), transparent 36%),
+    linear-gradient(180deg, var(--ivory) 0%, #f8f2e9 100%);
+}
+
+.wedding-container {
+  width: min(1120px, calc(100vw - 32px));
+  margin: 0 auto;
+}
+
+.wedding-card {
+  background: rgba(251, 249, 244, 0.92);
+  border: 1px solid var(--hair);
+  box-shadow: 0 24px 80px -36px rgba(42, 38, 34, 0.25);
+}
+
+.wedding-panel {
+  background: rgba(245, 239, 230, 0.8);
+  border: 1px solid var(--hair);
+}
+
+.eyebrow {
+  font-family: 'Inter', sans-serif;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.28em;
+  text-transform: uppercase;
+  color: var(--gold);
+}
+
+.title-serif {
+  font-family: 'Cormorant Garamond', 'Shippori Mincho', serif;
+}
+
+.title-jp {
+  font-family: 'Shippori Mincho', 'Cormorant Garamond', serif;
+}
+
+.ornament {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--gold);
+}
+
+.ornament::before,
+.ornament::after {
+  content: '';
+  width: 34px;
+  height: 1px;
+  background: var(--gold);
+}
+
+.ornament-diamond {
+  width: 6px;
+  height: 6px;
+  background: var(--gold);
+  transform: rotate(45deg);
+  display: inline-block;
+}
+
+.btn-primary {
+  border: none;
+  background: var(--ink);
+  color: var(--ivory);
+  padding: 14px 18px;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+.btn-secondary {
+  border: 1px solid var(--gold);
+  background: transparent;
+  color: var(--gold);
+  padding: 12px 18px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+.field-line {
+  width: 100%;
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid var(--hair);
+  color: var(--ink);
+  padding: 10px 0;
+  outline: none;
+}
+
+.surface-frame {
+  border: 1px solid var(--gold);
+  padding: 8px;
+  background: white;
+}
+
+.surface-frame__inner {
+  border: 1px solid var(--gold-soft);
+  padding: 6px;
+}
+
+.photo-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 14px;
+}
+
+@media (max-width: 768px) {
+  .wedding-container {
+    width: min(100vw - 24px, 100%);
+  }
 }

@@ -1,17 +1,40 @@
+import Link from 'next/link';
+import { Eyebrow, OrnamentDivider, SectionCard } from '@/components/shared/wedding-ui';
+
+const links = [
+  { href: '/e/wedding-test', label: 'ゲスト投稿ページ', en: 'Guest Post' },
+  { href: '/e/wedding-test/display', label: 'モニター表示', en: 'Live Monitor' },
+  { href: '/admin/login', label: '管理ログイン', en: 'Admin Login' },
+  { href: '/album/wedding-test', label: '後日アルバム', en: 'Memory Album' },
+];
+
 export default function HomePage() {
   return (
-    <main className="mx-auto min-h-screen max-w-4xl px-6 py-16">
-      <div className="rounded-3xl border border-rose-100 bg-white p-8 shadow-sm">
-        <h1 className="text-3xl font-bold">Wedding Photo App</h1>
-        <p className="mt-4 text-slate-600">
-          結婚式向けのリアルタイム写真共有Webアプリのスターターです。
-        </p>
-        <div className="mt-8 space-y-2 text-sm text-slate-700">
-          <p>ゲスト投稿: /e/wedding-test</p>
-          <p>モニター: /e/wedding-test/display</p>
-          <p>管理画面: /admin/wedding-test</p>
-          <p>後日アルバム: /album/wedding-test</p>
-        </div>
+    <main className="wedding-shell" style={{ padding: '48px 0 72px' }}>
+      <div className="wedding-container">
+        <SectionCard style={{ padding: '48px 36px' }}>
+          <div style={{ textAlign: 'center' }}>
+            <Eyebrow>Wedding Photo Sharing</Eyebrow>
+            <h1 className="title-serif" style={{ fontSize: 54, fontStyle: 'italic', fontWeight: 300, marginTop: 14 }}>
+              Memoire
+            </h1>
+            <div style={{ marginTop: 12 }}><OrnamentDivider wide={104} /></div>
+            <p className="title-jp" style={{ marginTop: 16, fontSize: 14, color: 'var(--ink-70)', lineHeight: 1.9, letterSpacing: '0.08em' }}>
+              結婚式当日の写真をリアルタイムで共有し、
+              披露宴のモニターに上品に映し出すためのWebアプリです。
+            </p>
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 16, marginTop: 32 }}>
+            {links.map((link) => (
+              <Link key={link.href} href={link.href} className="wedding-panel" style={{ padding: '18px 18px 20px', display: 'block' }}>
+                <div className="eyebrow">{link.en}</div>
+                <div className="title-jp" style={{ fontSize: 18, marginTop: 10, letterSpacing: '0.06em' }}>{link.label}</div>
+                <div style={{ marginTop: 10, fontSize: 11, color: 'var(--ink-50)' }}>{link.href}</div>
+              </Link>
+            ))}
+          </div>
+        </SectionCard>
       </div>
     </main>
   );

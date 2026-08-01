@@ -13,7 +13,7 @@ export default async function AdminLoginPage({
   };
 
   return (
-    <main className="flex min-h-screen items-center justify-center bg-rose-50 px-4">
+    <main className="wedding-shell" style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '24px' }}>
       <AdminLoginForm nextPath={params.next} message={params.error ? messageMap[params.error] : undefined} />
     </main>
   );
