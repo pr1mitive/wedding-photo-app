@@ -21,6 +21,8 @@ type Photo = {
   createdAt: string;
   isHighlight: boolean;
   isRecommended: boolean;
+  width?: number | null;
+  height?: number | null;
   reactions: ReactionCounts;
 };
 
@@ -83,10 +85,6 @@ export default function DisplaySlideshow({ eventCode }: Props) {
     const repeated = Array.from({ length: Math.max(COLUMN_COUNT * 6, photos.length * 3) }, (_, i) => photos[i % photos.length]);
     return Array.from({ length: COLUMN_COUNT }, (_, columnIndex) => repeated.filter((_, idx) => idx % COLUMN_COUNT === columnIndex));
   }, [photos]);
-
-  const recommendedPhoto = useMemo(() => {
-    return photos.find((photo) => photo.isRecommended) ?? photos.find((photo) => photo.isHighlight) ?? latestPhoto ?? null;
-  }, [photos, latestPhoto]);
 
   const highlightPool = useMemo(() => {
     const recommended = photos.filter((photo) => photo.isRecommended);
@@ -262,57 +260,48 @@ export default function DisplaySlideshow({ eventCode }: Props) {
         {collageColumns.map((column, columnIndex) => {
           const duration = settings.slideIntervalSec * 5 + columnIndex * 3;
           const animationName = columnIndex % 2 === 0 ? 'monitor-scroll-up' : 'monitor-scroll-down';
-          const tileHeight = columnIndex % 3 === 0 ? '160px' : columnIndex % 3 === 1 ? '190px' : '145px';
           const duplicated = [...column, ...column];
 
           return (
             <div key={columnIndex} style={{ position: 'relative', overflow: 'hidden', maskImage: 'linear-gradient(180deg, transparent 0%, black 8%, black 92%, transparent 100%)', WebkitMaskImage: 'linear-gradient(180deg, transparent 0%, black 8%, black 92%, transparent 100%)' }}>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 18, animation: `${animationName} ${duration}s linear infinite` }}>
-                {duplicated.map((photo, photoIndex) => (
-                  <div
-                    key={`${columnIndex}-${photo.id}-${photoIndex}`}
-                    style={{
-                      position: 'relative',
-                      height: tileHeight,
-                      overflow: 'hidden',
-                      border: photo.isRecommended ? '1px solid rgba(184,151,92,0.82)' : '1px solid rgba(184,151,92,0.42)',
-                      background: 'rgba(255,255,255,0.58)',
-                      boxShadow: '0 18px 36px -30px rgba(42,38,34,0.35)',
-                    }}
-                  >
-                    <img src={photo.displayUrl} alt={photo.guestName} style={{ width: '100%', height: '100%', objectFit: 'cover', filter: focusPhoto ? 'saturate(0.9) brightness(0.88)' : 'saturate(0.95) brightness(0.94)' }} />
-                    <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(180deg, transparent 40%, rgba(20,16,12,0.42))' }} />
-                    <div style={{ position: 'absolute', left: 10, bottom: 10, right: 10, color: '#fff' }}>
-                      <div className="title-serif" style={{ fontSize: 10, letterSpacing: '0.18em', color: '#f3dec0' }}>
-                        {photo.isRecommended ? 'PICK' : photo.isHighlight ? 'HIGHLIGHT' : 'MEMORY'}
+                {duplicated.map((photo, photoIndex) => {
+                  const ratio = getPhotoRatio(photo);
+                  return (
+                    <div
+                      key={`${columnIndex}-${photo.id}-${photoIndex}`}
+                      style={{
+                        position: 'relative',
+                        aspectRatio: ratio,
+                        minHeight: 140,
+                        maxHeight: 260,
+                        overflow: 'hidden',
+                        border: photo.isRecommended ? '1px solid rgba(184,151,92,0.82)' : '1px solid rgba(184,151,92,0.42)',
+                        background: 'rgba(255,255,255,0.72)',
+                        boxShadow: '0 18px 36px -30px rgba(42,38,34,0.35)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                      }}
+                    >
+                      <img src={photo.displayUrl} alt={photo.guestName} style={{ width: '100%', height: '100%', objectFit: 'contain', filter: focusPhoto ? 'saturate(0.9) brightness(0.88)' : 'saturate(0.95) brightness(0.94)' }} />
+                      <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(180deg, transparent 40%, rgba(20,16,12,0.26))' }} />
+                      <div style={{ position: 'absolute', left: 10, bottom: 10, right: 10, color: '#fff' }}>
+                        <div className="title-serif" style={{ fontSize: 10, letterSpacing: '0.18em', color: '#f3dec0' }}>
+                          {photo.isRecommended ? 'PICK' : photo.isHighlight ? 'HIGHLIGHT' : 'MEMORY'}
+                        </div>
+                        <div className="title-jp" style={{ marginTop: 2, fontSize: 11, lineHeight: 1.5 }}>{photo.guestName}</div>
                       </div>
-                      <div className="title-jp" style={{ marginTop: 2, fontSize: 11, lineHeight: 1.5 }}>{photo.guestName}</div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
           );
         })}
       </div>
 
-      <div className="monitor-recommended" style={{ position: 'absolute', right: 28, bottom: 94, zIndex: 2, width: 240, display: 'grid', gap: 12 }}>
-        {recommendedPhoto && (
-          <div className="wedding-card" style={{ padding: 10, background: 'rgba(251,249,244,0.88)', backdropFilter: 'blur(4px)' }}>
-            <div className="title-serif" style={{ fontSize: 11, letterSpacing: '0.24em', color: 'var(--gold)' }}>NOW PICK</div>
-            <div style={{ marginTop: 8 }} className="surface-frame">
-              <div className="surface-frame__inner">
-                <img src={recommendedPhoto.displayUrl} alt={recommendedPhoto.guestName} style={{ width: '100%', aspectRatio: '4 / 5', objectFit: 'cover' }} />
-              </div>
-            </div>
-            <div className="title-jp" style={{ marginTop: 10, fontSize: 13 }}>{recommendedPhoto.guestName}</div>
-            <div style={{ marginTop: 6, fontSize: 10, lineHeight: 1.7, color: 'var(--ink-70)' }}>
-              {recommendedPhoto.comment || '今のおすすめ写真として表示中'}
-            </div>
-            <ReactionStrip reactions={recommendedPhoto.reactions} compact />
-          </div>
-        )}
-
+      <div className="monitor-recommended" style={{ position: 'absolute', right: 28, bottom: 94, zIndex: 2, width: 240 }}>
         <AlbumAccessCard
           eventCode={eventCode}
           title="アルバムでリアクション"
@@ -329,19 +318,19 @@ export default function DisplaySlideshow({ eventCode }: Props) {
             </div>
 
             <div className="surface-frame" style={{ position: 'relative', boxShadow: '0 24px 70px -20px rgba(42,38,34,0.38)', background: 'rgba(255,255,255,0.95)' }}>
-              <div className="surface-frame__inner">
+              <div className="surface-frame__inner" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 12, background: 'rgba(245,239,230,0.6)' }}>
                 <img
                   src={focusPhoto.displayUrl}
                   alt={focusPhoto.guestName}
                   style={{
                     display: 'block',
-                    width: 'min(42vw, 640px)',
-                    height: 'min(42vw, 640px)',
-                    minWidth: 320,
-                    minHeight: 320,
+                    width: 'auto',
+                    height: 'auto',
+                    minWidth: 280,
+                    minHeight: 220,
                     maxWidth: '74vw',
                     maxHeight: '72vh',
-                    objectFit: 'cover',
+                    objectFit: 'contain',
                   }}
                 />
               </div>
@@ -392,6 +381,12 @@ export default function DisplaySlideshow({ eventCode }: Props) {
       </div>
     </div>
   );
+}
+
+function getPhotoRatio(photo: Photo) {
+  const width = photo.width && photo.width > 0 ? photo.width : 4;
+  const height = photo.height && photo.height > 0 ? photo.height : 3;
+  return `${width} / ${height}`;
 }
 
 function ReactionStrip({ reactions, compact = false }: { reactions: ReactionCounts; compact?: boolean }) {

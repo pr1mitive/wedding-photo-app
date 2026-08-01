@@ -18,7 +18,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ even
 
   let query = supabaseAdmin
     .from('photos')
-    .select('id, display_path, guest_name, comment, created_at, is_highlight, is_recommended')
+    .select('id, display_path, guest_name, comment, created_at, is_highlight, is_recommended, width, height')
     .eq('event_id', eventRow.id)
     .eq('is_hidden', false)
     .limit(limit);
@@ -68,6 +68,8 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ even
         createdAt: row.created_at,
         isHighlight: row.is_highlight,
         isRecommended: row.is_recommended,
+        width: row.width,
+        height: row.height,
         reactions: reactionMap.get(row.id) || { heart: 0, clap: 0, wow: 0, cry: 0, fire: 0, total: 0 },
       };
     }),
