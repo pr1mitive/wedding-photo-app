@@ -14,8 +14,7 @@ export default async function EventPage({ params }: { params: Promise<{ eventCod
           </h1>
           <div style={{ marginTop: 10 }}><OrnamentDivider wide={92} /></div>
           <p className="title-jp" style={{ marginTop: 14, fontSize: 14, color: 'var(--ink-70)', letterSpacing: '0.08em', lineHeight: 1.9 }}>
-            祝福の瞬間を、みなさまの視点で残してください。<br />
-            イベントコード: {eventCode}
+            祝福の瞬間を、みなさまの視点で残してください。
           </p>
         </div>
 

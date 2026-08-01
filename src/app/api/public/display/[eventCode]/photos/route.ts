@@ -23,15 +23,23 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ even
     .eq('is_hidden', false)
     .limit(limit);
 
-  query = orderType === 'newest' ? query.order('created_at', { ascending: false }) : query.order('created_at', { ascending: true });
+  if (orderType === 'newest') {
+    query = query.order('created_at', { ascending: false });
+  } else if (orderType === 'random') {
+    query = query.order('created_at', { ascending: true });
+  } else {
+    query = query.order('created_at', { ascending: true });
+  }
 
   const { data, error } = await query;
   if (error) {
     return NextResponse.json({ success: false, error: { code: 'FETCH_FAILED', message: 'failed' } }, { status: 500 });
   }
 
+  const rows = orderType === 'random' ? [...(data || [])].sort(() => Math.random() - 0.5) : data || [];
+
   const photos = await Promise.all(
-    (data || []).map(async (row) => {
+    rows.map(async (row) => {
       const signed = await supabaseAdmin.storage.from('wedding-display').createSignedUrl(row.display_path, 60 * 60);
       return {
         id: row.id,

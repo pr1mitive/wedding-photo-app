@@ -7,4 +7,6 @@ export const displaySettingsSchema = z.object({
   orderType: z.enum(['chronological', 'newest', 'random']),
   showComment: z.boolean(),
   highlightPriority: z.boolean(),
+  albumPublicUntil: z.string().nullable().optional(),
+  isActive: z.boolean().optional(),
 });

@@ -1,13 +1,17 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
-import { Eyebrow, OrnamentDivider, SectionCard, designPhotos } from '@/components/shared/wedding-ui';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { Eyebrow, OrnamentDivider, SectionCard } from '@/components/shared/wedding-ui';
 
 type Props = {
   eventCode: string;
 };
 
+const STORAGE_KEY = 'wedding-photo-app:guest-profile';
+
 export default function GuestUploadForm({ eventCode }: Props) {
+  const galleryInputRef = useRef<HTMLInputElement | null>(null);
+  const cameraInputRef = useRef<HTMLInputElement | null>(null);
   const [file, setFile] = useState<File | null>(null);
   const [guestName, setGuestName] = useState('');
   const [nickname, setNickname] = useState('');
@@ -22,6 +26,26 @@ export default function GuestUploadForm({ eventCode }: Props) {
       if (previewUrl) URL.revokeObjectURL(previewUrl);
     };
   }, [previewUrl]);
+
+  useEffect(() => {
+    try {
+      const raw = window.localStorage.getItem(STORAGE_KEY);
+      if (!raw) return;
+      const saved = JSON.parse(raw) as { guestName?: string; nickname?: string };
+      setGuestName(saved.guestName || '');
+      setNickname(saved.nickname || '');
+    } catch {
+      // ignore broken localStorage payload
+    }
+  }, []);
+
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(STORAGE_KEY, JSON.stringify({ guestName, nickname }));
+    } catch {
+      // ignore storage write failures
+    }
+  }, [guestName, nickname]);
 
   const canSubmit = !!file && guestName.trim().length > 0 && !loading;
 
@@ -57,7 +81,7 @@ export default function GuestUploadForm({ eventCode }: Props) {
   return (
     <SectionCard className="mx-auto max-w-md overflow-hidden">
       <div className="border-b" style={{ borderColor: 'var(--hair-soft)', padding: '22px 24px 18px', textAlign: 'center' }}>
-        <Eyebrow>Yuki &amp; Haruto&apos;s Wedding</Eyebrow>
+        <Eyebrow>Wataru &amp; Misaki&apos;s Wedding</Eyebrow>
         <h2 className="title-jp" style={{ fontSize: 24, fontWeight: 400, letterSpacing: '0.08em', marginTop: 8 }}>写真を送る</h2>
         <div style={{ marginTop: 10 }}><OrnamentDivider wide={44} /></div>
         <p style={{ marginTop: 10, color: 'var(--ink-50)', fontSize: 12, lineHeight: 1.8 }}>
@@ -72,35 +96,47 @@ export default function GuestUploadForm({ eventCode }: Props) {
           <div className="title-jp" style={{ fontSize: 14, letterSpacing: '0.06em' }}>写真を選ぶ</div>
         </div>
 
-        <div style={{ aspectRatio: '4 / 3', background: 'var(--paper)', border: '1px solid var(--hair)', overflow: 'hidden', position: 'relative' }}>
+        <div style={{ aspectRatio: '4 / 3', background: 'var(--paper)', border: '1px solid var(--hair)', overflow: 'hidden', position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
           {previewUrl ? (
             <img src={previewUrl} alt="preview" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
           ) : (
-            <img src={designPhotos[0]} alt="sample" style={{ width: '100%', height: '100%', objectFit: 'cover', opacity: 0.85 }} />
+            <div style={{ textAlign: 'center', color: 'var(--ink-50)', padding: '0 24px' }}>
+              <div className="title-serif" style={{ fontSize: 26, color: 'var(--gold)' }}>+</div>
+              <div className="title-jp" style={{ marginTop: 8, fontSize: 13, lineHeight: 1.8 }}>
+                フォルダから選ぶ もしくは<br />
+                カメラで撮影してください
+              </div>
+            </div>
           )}
           <div style={{ position: 'absolute', left: 10, top: 10, background: 'rgba(0,0,0,0.35)', color: '#fff', padding: '3px 8px', fontSize: 9, letterSpacing: '0.12em' }}>
             PREVIEW
           </div>
         </div>
 
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 8, marginTop: 10 }}>
-          {designPhotos.slice(0, 3).map((src, i) => (
-            <div key={src} style={{ aspectRatio: '1 / 1', border: '1px solid var(--hair)', overflow: 'hidden', position: 'relative' }}>
-              <img src={src} alt={`sample-${i}`} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-            </div>
-          ))}
-          <label style={{ aspectRatio: '1 / 1', border: '1px dashed var(--gold)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: 6, color: 'var(--gold)', cursor: 'pointer', background: 'rgba(245,239,230,0.45)' }}>
-            <span style={{ fontSize: 18 }}>＋</span>
-            <span style={{ fontSize: 9, letterSpacing: '0.16em' }}>ADD</span>
-            <input
-              type="file"
-              accept="image/*"
-              capture="environment"
-              onChange={(e) => setFile(e.target.files?.[0] ?? null)}
-              style={{ display: 'none' }}
-            />
-          </label>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginTop: 12 }}>
+          <button type="button" className="btn-secondary title-serif" onClick={() => galleryInputRef.current?.click()}>
+            フォルダから選ぶ
+          </button>
+          <button type="button" className="btn-primary title-serif" onClick={() => cameraInputRef.current?.click()}>
+            カメラを使う
+          </button>
         </div>
+
+        <input
+          ref={galleryInputRef}
+          type="file"
+          accept="image/*"
+          onChange={(e) => setFile(e.target.files?.[0] ?? null)}
+          style={{ display: 'none' }}
+        />
+        <input
+          ref={cameraInputRef}
+          type="file"
+          accept="image/*"
+          capture="environment"
+          onChange={(e) => setFile(e.target.files?.[0] ?? null)}
+          style={{ display: 'none' }}
+        />
       </div>
 
       <div style={{ padding: '18px 24px 14px', borderBottom: '1px solid var(--hair-soft)' }}>
@@ -110,9 +146,9 @@ export default function GuestUploadForm({ eventCode }: Props) {
         </div>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
           <Field label="お名前" value={guestName} onChange={setGuestName} placeholder="山田 花子" />
-          <Field label="ニックネーム" value={nickname} onChange={setNickname} placeholder="はなこ" />
+          <Field label="ニックネーム" value={nickname} onChange={setNickname} placeholder="みさき" />
         </div>
-        <p style={{ marginTop: 8, fontSize: 10, color: 'var(--ink-50)' }}>モニターでは「ニックネーム」が表示されます</p>
+        <p style={{ marginTop: 8, fontSize: 10, color: 'var(--ink-50)' }}>一度入力すると次回から自動で保持されます。モニターではニックネームが優先表示されます。</p>
       </div>
 
       <div style={{ padding: '18px 24px 14px', borderBottom: '1px solid var(--hair-soft)' }}>
