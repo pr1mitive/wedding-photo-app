@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
+import AlbumAccessCard from '@/components/shared/AlbumAccessCard';
 import { Eyebrow, OrnamentDivider } from '@/components/shared/wedding-ui';
 
 type ReactionCounts = {
@@ -295,8 +296,8 @@ export default function DisplaySlideshow({ eventCode }: Props) {
         })}
       </div>
 
-      {recommendedPhoto && (
-        <div className="monitor-recommended" style={{ position: 'absolute', right: 28, bottom: 94, zIndex: 2, width: 240 }}>
+      <div className="monitor-recommended" style={{ position: 'absolute', right: 28, bottom: 94, zIndex: 2, width: 240, display: 'grid', gap: 12 }}>
+        {recommendedPhoto && (
           <div className="wedding-card" style={{ padding: 10, background: 'rgba(251,249,244,0.88)', backdropFilter: 'blur(4px)' }}>
             <div className="title-serif" style={{ fontSize: 11, letterSpacing: '0.24em', color: 'var(--gold)' }}>NOW PICK</div>
             <div style={{ marginTop: 8 }} className="surface-frame">
@@ -310,8 +311,15 @@ export default function DisplaySlideshow({ eventCode }: Props) {
             </div>
             <ReactionStrip reactions={recommendedPhoto.reactions} compact />
           </div>
-        </div>
-      )}
+        )}
+
+        <AlbumAccessCard
+          eventCode={eventCode}
+          title="アルバムでリアクション"
+          subtitle="QRを読み取って拍手やいいねを送れます"
+          mode="compact"
+        />
+      </div>
 
       {focusPhoto && (
         <div style={{ position: 'absolute', inset: 0, zIndex: 3, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '110px 56px 96px', background: 'rgba(255,249,242,0.18)', backdropFilter: 'blur(3px)' }}>

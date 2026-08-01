@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import AlbumAccessCard from '@/components/shared/AlbumAccessCard';
 import { Eyebrow, OrnamentDivider, SectionCard } from '@/components/shared/wedding-ui';
 
 export default async function DonePage({ params }: { params: Promise<{ eventCode: string }> }) {
@@ -33,15 +34,29 @@ export default async function DonePage({ params }: { params: Promise<{ eventCode
         <div className="wedding-panel" style={{ marginTop: 28, padding: '16px 18px', textAlign: 'left' }}>
           <div className="eyebrow">Album Notice</div>
           <div className="title-jp" style={{ marginTop: 6, fontSize: 12, lineHeight: 1.8 }}>
-            後日アルバムページは、式のあとに公開します。<br />
-            公開期限内で何度でも閲覧・ダウンロードできます。
+            いまアルバムを見ると、みんなの写真を眺めたり、<br />
+            お気に入りの一枚にリアクションを送れます。
           </div>
           <div style={{ marginTop: 8, fontSize: 11, color: 'var(--gold)', letterSpacing: '0.12em' }}>公開期限: 2026.11.30 まで</div>
         </div>
 
-        <Link href={`/e/${eventCode}`} className="btn-secondary title-serif" style={{ display: 'inline-block', marginTop: 28 }}>
-          もう一枚 送る
-        </Link>
+        <div style={{ marginTop: 20 }}>
+          <AlbumAccessCard
+            eventCode={eventCode}
+            title="今の写真を見る / リアクションする"
+            subtitle="アルバムに進むと、写真の閲覧とリアクションができます"
+            mode="compact"
+          />
+        </div>
+
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginTop: 20 }}>
+          <Link href={`/album/${eventCode}`} className="btn-primary title-serif" style={{ display: 'inline-block' }}>
+            アルバムを見る
+          </Link>
+          <Link href={`/e/${eventCode}`} className="btn-secondary title-serif" style={{ display: 'inline-block' }}>
+            もう一枚 送る
+          </Link>
+        </div>
       </SectionCard>
     </main>
   );

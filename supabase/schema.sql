@@ -24,6 +24,7 @@ create table if not exists public.events (
   constraint events_event_code_check check (char_length(event_code) between 3 and 80)
 );
 
+drop trigger if exists trg_events_updated_at on public.events;
 create trigger trg_events_updated_at
 before update on public.events
 for each row execute function public.set_updated_at();
@@ -57,6 +58,7 @@ alter table public.display_settings add column if not exists current_mission_act
 alter table public.display_settings add column if not exists auto_highlight_enabled boolean not null default false;
 alter table public.display_settings add column if not exists auto_highlight_interval_sec integer not null default 20;
 
+drop trigger if exists trg_display_settings_updated_at on public.display_settings;
 create trigger trg_display_settings_updated_at
 before update on public.display_settings
 for each row execute function public.set_updated_at();
@@ -98,6 +100,7 @@ create index if not exists ix_photos_event_recommended on public.photos(event_id
 create index if not exists ix_photos_event_timeline on public.photos(event_id, timeline_label, created_at desc);
 create index if not exists ix_photos_event_guest_name on public.photos(event_id, guest_name);
 
+drop trigger if exists trg_photos_updated_at on public.photos;
 create trigger trg_photos_updated_at
 before update on public.photos
 for each row execute function public.set_updated_at();
