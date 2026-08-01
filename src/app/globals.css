@@ -1,0 +1,15 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: light;
+}
+
+body {
+  @apply bg-rose-50 text-slate-900;
+}
+
+a {
+  @apply text-gold underline-offset-2 hover:underline;
+}

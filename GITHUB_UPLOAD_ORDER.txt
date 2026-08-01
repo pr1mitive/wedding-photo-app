@@ -1,0 +1,68 @@
+GitHubへ置くファイル一式の配置順マニュアル（管理認証つき版）
+
+1. GitHubで新規Repositoryを作成
+   - Name: wedding-photo-app-auth
+   - PublicまたはPrivateを選択
+   - Create repository
+
+2. ローカルでZIPを展開する
+   - 展開後に wedding-photo-app-auth フォルダが見える状態にする
+
+3. GitHubのリポジトリ画面で Add file → Upload files を押す
+
+4. まずアップロードするもの
+   - package.json
+   - tsconfig.json
+   - next.config.mjs
+   - postcss.config.mjs
+   - tailwind.config.ts
+   - next-env.d.ts
+   - .gitignore
+   - .env.example
+   - GITHUB_UPLOAD_ORDER.txt
+   - ADMIN_AUTH_SETUP.txt
+
+5. 次に src フォルダを丸ごとアップロードする
+   - src/app
+   - src/components
+   - src/lib
+   - src/middleware.ts
+
+6. 次に supabase フォルダをアップロードする
+   - supabase/schema.sql
+   - supabase/admin_auth_setup.sql
+
+7. Upload files 画面の下で Commit changes を押す
+
+8. GitHub上でファイル構成が次のように見えればOK
+   - src/
+   - supabase/
+   - package.json
+   - tsconfig.json
+   - next.config.mjs
+   - postcss.config.mjs
+   - tailwind.config.ts
+   - .env.example
+   - ADMIN_AUTH_SETUP.txt
+
+9. VercelでImportするときの注意
+   - Frameworkは Next.js のままでOK
+   - Environment Variables に .env.example の4項目を入力する
+
+10. Supabaseで最初にやること
+   - SQL Editorで supabase/schema.sql を実行
+   - Storageで wedding-originals / wedding-display / wedding-thumbs を作成
+   - Authentication > Users で管理者ユーザーを1件作成
+   - SQL Editorで supabase/admin_auth_setup.sql を実行して admin_users に紐づける
+
+11. 公開後に開くURL例
+   - /e/wedding-test
+   - /e/wedding-test/display
+   - /admin/login
+   - /admin/wedding-test
+   - /album/wedding-test
+
+12. 注意
+   - .env.local はGitHubにアップしない
+   - SUPABASE_SERVICE_ROLE_KEY はVercelの環境変数にだけ入れる
+   - 管理画面に入れない場合は admin_users への紐づけ漏れを確認する

@@ -1,0 +1,19 @@
+管理認証つき版のセットアップ手順
+
+1. Supabase Dashboard を開く
+2. Authentication → Users を開く
+3. Create user を押す
+4. 管理者用メールアドレスとパスワードを作成する
+5. SQL Editor を開く
+6. supabase/admin_auth_setup.sql を開く
+7. 先頭の select id, email, created_at from auth.users; を実行して、今作った管理者ユーザーの UUID を確認する
+8. admin_auth_setup.sql の YOUR_AUTH_USER_UUID を実際のUUIDへ置き換える
+9. insert into public.admin_users ... を実行する
+10. Vercelへデプロイ済みなら /admin/login を開く
+11. 作成した管理者メールアドレスとパスワードでログインする
+12. ログイン後、/admin/wedding-test に入れれば成功
+
+注意:
+- 管理画面APIは認証つき版で保護されます
+- admin_users に紐づいていないユーザーは管理画面に入れません
+- guest側 URL はそのまま利用できます
